@@ -1,0 +1,18 @@
+import 'package:dart_frog/dart_frog.dart';
+import '../lib/controllers/product_controller.dart';
+
+final _controller = ProductController();
+
+Future<Response> onRequest(RequestContext context) async {
+  final method = context.request.method;
+
+  if (method == HttpMethod.get) {
+    return _controller.getAll(context);
+  }
+
+  if (method == HttpMethod.post) {
+    return _controller.create(context);
+  }
+
+  return Response(statusCode: 405);
+}

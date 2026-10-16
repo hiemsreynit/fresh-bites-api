@@ -1,0 +1,58 @@
+
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Fresh Bites API",
+    "description": "REST API for the Fresh Bites application",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080"
+    }
+  ],
+  "paths": {
+    "/products": {
+      "get": {
+        "summary": "Get all products",
+        "responses": {
+          "200": {
+            "description": "Products retrieved successfully"
+          }
+        }
+      },
+      "post": {
+        "summary": "Create a product",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "price"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Fresh Juice"
+                  },
+                  "price": {
+                    "type": "number",
+                    "example": 3.5
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Product created successfully"
+          },
+          "400": {
+            "description": "Invalid product data"
+          }
+        }
+      }
+    }
+  }
+}
