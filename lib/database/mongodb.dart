@@ -1,4 +1,4 @@
-
+import 'package:dotenv/dotenv.dart';
 import 'package:mongo_dart/mongo_dart.dart';
 
 class MongoDatabase {
@@ -12,12 +12,36 @@ class MongoDatabase {
 
   static Future<void> _connect() async {
     try {
-      final database = await Db.create(
-        'mongodb://admin:haha123!@localhost:27017/fresh_bites?authSource=admin',
-      );
+      final env = DotEnv()..load();
 
-      await database.open();
-      _db = database;
+      const required = [
+        'MONGO_HOST',
+        'MONGO_PORT',
+        'MONGO_DATABASE',
+        'MONGO_USERNAME',
+        'MONGO_PASSWORD',
+        'MONGO_AUTH_SOURCE',
+      ];
+
+      if (!env.isEveryDefined(required)) {
+        throw StateError('Missing required environment variables in .env');
+      }
+
+      final host = env['MONGO_HOST']!;
+      final port = int.parse(env['MONGO_PORT']!);
+      final database = env['MONGO_DATABASE']!;
+      final username = Uri.encodeComponent(env['MONGO_USERNAME']!);
+      final password = Uri.encodeComponent(env['MONGO_PASSWORD']!);
+      final authSource = env['MONGO_AUTH_SOURCE']!;
+
+      final connectionString =
+          'mongodb://$username:$password@$host:$port/$database'
+          '?authSource=${Uri.encodeComponent(authSource)}';
+
+      final connection = await Db.create(connectionString);
+
+      await connection.open();
+      _db = connection;
 
       await _initializeCollections();
 
@@ -243,19 +267,23 @@ class MongoDatabase {
       };
 
       if (existing.contains(name)) {
-        await db.runCommand({
-          'collMod': name,
-          'validator': validator,
-          'validationLevel': 'moderate',
-          'validationAction': 'error',
-        }.cast<String, Object>());
+        await db.runCommand(
+          {
+            'collMod': name,
+            'validator': validator,
+            'validationLevel': 'moderate',
+            'validationAction': 'error',
+          }.cast<String, Object>(),
+        );
       } else {
-        await db.runCommand({
-          'create': name,
-          'validator': validator,
-          'validationLevel': 'strict',
-          'validationAction': 'error',
-        }.cast<String, Object>());
+        await db.runCommand(
+          {
+            'create': name,
+            'validator': validator,
+            'validationLevel': 'strict',
+            'validationAction': 'error',
+          }.cast<String, Object>(),
+        );
       }
     }
 
@@ -288,16 +316,18 @@ class MongoDatabase {
     Map<String, int> keys, {
     bool unique = false,
   }) async {
-    await db.runCommand({
-      'createIndexes': collection,
-      'indexes': [
-        {
-          'key': keys,
-          'name': name,
-          if (unique) 'unique': true,
-        },
-      ],
-    }.cast<String, Object>());
+    await db.runCommand(
+      {
+        'createIndexes': collection,
+        'indexes': [
+          {
+            'key': keys,
+            'name': name,
+            if (unique) 'unique': true,
+          },
+        ],
+      }.cast<String, Object>(),
+    );
   }
 
   static Db get db {
