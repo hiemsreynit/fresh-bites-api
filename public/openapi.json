@@ -1,0 +1,1397 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Fresh Bites API",
+    "description": "REST API for the Fresh Bites application",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8080"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Categories",
+      "description": "Category management endpoints"
+    },
+    {
+      "name": "Products",
+      "description": "Product management endpoints"
+    },
+    {
+      "name": "Authentication",
+      "description": "Customer registration and authentication"
+    },
+    {
+      "name": "Users",
+      "description": "User profile and administration endpoints"
+    }
+  ],
+  "paths": {
+    "/categories": {
+      "get": {
+        "tags": ["Categories"],
+        "summary": "List categories",
+        "parameters": [
+          {
+            "name": "isActive",
+            "in": "query",
+            "required": false,
+            "description": "Filter categories by active status",
+            "schema": {
+              "type": "boolean"
+            },
+            "example": true
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Categories retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Category"
+                  }
+                },
+                "example": [
+                  {
+                    "_id": "653a1f2c9b8e4a6d7f0c1234",
+                    "name": "Fresh Produce",
+                    "description": "Fresh fruits and vegetables",
+                    "imageUrl": "https://example.com/produce.jpg",
+                    "isActive": true,
+                    "createdAt": "2026-10-27T04:30:00.000Z",
+                    "updatedAt": "2026-10-27T04:30:00.000Z"
+                  }
+                ]
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Categories"],
+        "summary": "Create a category",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCategoryRequest"
+              },
+              "example": {
+                "name": "Fresh Produce",
+                "description": "Fresh fruits and vegetables",
+                "imageUrl": "https://example.com/produce.jpg",
+                "isActive": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Category created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Category"
+                },
+                "example": {
+                  "_id": "653a1f2c9b8e4a6d7f0c1234",
+                  "name": "Fresh Produce",
+                  "description": "Fresh fruits and vegetables",
+                  "imageUrl": "https://example.com/produce.jpg",
+                  "isActive": true,
+                  "createdAt": "2026-10-27T04:30:00.000Z",
+                  "updatedAt": "2026-10-27T04:30:00.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/categories/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Category MongoDB ObjectId",
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "example": "653a1f2c9b8e4a6d7f0c1234"
+        }
+      ],
+      "get": {
+        "tags": ["Categories"],
+        "summary": "Get a category by ID",
+        "responses": {
+          "200": {
+            "description": "Category retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Category"
+                },
+                "example": {
+                  "_id": "653a1f2c9b8e4a6d7f0c1234",
+                  "name": "Fresh Produce",
+                  "description": "Fresh fruits and vegetables",
+                  "imageUrl": "https://example.com/produce.jpg",
+                  "isActive": true,
+                  "createdAt": "2026-10-27T04:30:00.000Z",
+                  "updatedAt": "2026-10-27T04:30:00.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Categories"],
+        "summary": "Update a category",
+        "description": "Updates only supplied fields. Omitted fields remain unchanged; imageUrl may be null to clear it. _id and createdAt cannot be updated.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCategoryRequest"
+              },
+              "example": {
+                "name": "Seasonal Produce",
+                "imageUrl": null,
+                "isActive": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Category updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Category"
+                },
+                "example": {
+                  "_id": "653a1f2c9b8e4a6d7f0c1234",
+                  "name": "Seasonal Produce",
+                  "description": "Fresh fruits and vegetables",
+                  "imageUrl": null,
+                  "isActive": false,
+                  "createdAt": "2026-10-27T04:30:00.000Z",
+                  "updatedAt": "2026-10-27T04:45:00.000Z"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Categories"],
+        "summary": "Delete a category",
+        "description": "A category referenced by any product cannot be deleted.",
+        "responses": {
+          "204": {
+            "description": "Category deleted successfully"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/products": {
+      "get": {
+        "tags": ["Products"],
+        "summary": "Get all products",
+        "responses": {
+          "200": {
+            "description": "Products retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Product"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Products"],
+        "summary": "Create a product",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateProductRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Product created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductBadRequest"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/products/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Product MongoDB ObjectId",
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "example": "653a1f2c9b8e4a6d7f0c1234"
+        }
+      ],
+      "get": {
+        "tags": ["Products"],
+        "summary": "Get a product by ID",
+        "responses": {
+          "200": {
+            "description": "Product retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductBadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      },
+      "put": {
+        "tags": ["Products"],
+        "summary": "Update a product",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProductRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Product updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductBadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        },
+        "description": "Replaces the product fields. Omitted description and imageUrl values are cleared."
+      },
+      "delete": {
+        "tags": ["Products"],
+        "summary": "Delete a product",
+        "responses": {
+          "204": {
+            "description": "Product deleted successfully"
+          },
+          "400": {
+            "$ref": "#/components/responses/ProductBadRequest"
+          },
+          "404": {
+            "$ref": "#/components/responses/ProductNotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Register a customer",
+        "description": "Public registration always assigns the customer role. The role field is not accepted.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Customer registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid registration data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Invalid request data"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Email is already registered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "A user with this email already exists"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "An unexpected error occurred"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Authenticate with email and password",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Authentication successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthTokenResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request data",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Invalid request data"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Invalid email or password"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "An unexpected error occurred"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Get the current user profile",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Current user profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, invalid, or expired token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Authentication required"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "An unexpected error occurred"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "List all users",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Users retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Authentication required"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Insufficient permissions"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "An unexpected error occurred"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "User MongoDB ObjectId",
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "example": "653a1f2c9b8e4a6d7f0c1234"
+        }
+      ],
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get a user by ID",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "User details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid user ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Invalid user data or user id"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Authentication required"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Admin role required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Insufficient permissions"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "User not found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "An unexpected error occurred"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Users"],
+        "summary": "Update a user",
+        "description": "Users may update their own profile; admins may update any user. Role changes are not allowed through this endpoint.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateUserRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/User"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid update data or user ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Invalid user data or user id"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Authentication required"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Can only update your own profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Insufficient permissions"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "User not found"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Email is already in use",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "A user with this email already exists"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "An unexpected error occurred"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Users"],
+        "summary": "Delete a user",
+        "description": "Users may delete their own account; admins may delete any user.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "User deleted successfully"
+          },
+          "400": {
+            "description": "Invalid user ID",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Invalid user data or user id"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Authentication required"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Can only delete your own account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Insufficient permissions"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "User not found"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unexpected server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "An unexpected error occurred"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "Category": {
+        "type": "object",
+        "required": ["_id", "name", "isActive", "createdAt", "updatedAt"],
+        "properties": {
+          "_id": {
+            "type": "string",
+            "description": "MongoDB ObjectId serialized as a string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "example": "653a1f2c9b8e4a6d7f0c1234"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "example": "Fresh Produce"
+          },
+          "description": {
+            "type": "string",
+            "example": "Fresh fruits and vegetables"
+          },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://example.com/produce.jpg"
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true,
+            "example": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-27T04:30:00.000Z"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-10-27T04:30:00.000Z"
+          }
+        }
+      },
+      "CreateCategoryRequest": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "example": "Fresh Produce"
+          },
+          "description": {
+            "type": "string",
+            "example": "Fresh fruits and vegetables"
+          },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://example.com/produce.jpg"
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true,
+            "example": true
+          }
+        }
+      },
+      "UpdateCategoryRequest": {
+        "type": "object",
+        "minProperties": 1,
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "example": "Seasonal Produce"
+          },
+          "description": {
+            "type": "string",
+            "example": "Seasonal fruits and vegetables"
+          },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          },
+          "isActive": {
+            "type": "boolean",
+            "example": false
+          }
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["error"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "Category not found"
+          }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "required": ["id", "name", "price", "categoryId", "isAvailable", "createdAt", "updatedAt"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "example": "653a1f2c9b8e4a6d7f0c1234"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "example": "Fresh Juice"
+          },
+          "description": {
+            "type": "string",
+            "example": "Freshly squeezed juice"
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0,
+            "example": 3.5
+          },
+          "categoryId": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "example": "653a1f2c9b8e4a6d7f0c1234"
+          },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://example.com/juice.jpg"
+          },
+          "isAvailable": {
+            "type": "boolean",
+            "example": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreateProductRequest": {
+        "type": "object",
+        "required": ["name", "price", "categoryId"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "example": "Fresh Juice"
+          },
+          "description": {
+            "type": "string",
+            "example": "Freshly squeezed juice"
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0,
+            "example": 3.5
+          },
+          "categoryId": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "example": "653a1f2c9b8e4a6d7f0c1234"
+          },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://example.com/juice.jpg"
+          },
+          "isAvailable": {
+            "type": "boolean",
+            "default": true,
+            "example": true
+          }
+        }
+      },
+      "UpdateProductRequest": {
+        "type": "object",
+        "required": ["name", "price", "categoryId", "isAvailable"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "example": "Fresh Juice"
+          },
+          "description": {
+            "type": "string",
+            "example": "Freshly squeezed juice"
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0,
+            "example": 3.5
+          },
+          "categoryId": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "example": "653a1f2c9b8e4a6d7f0c1234"
+          },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://example.com/juice.jpg"
+          },
+          "isAvailable": {
+            "type": "boolean",
+            "default": true,
+            "example": true
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "required": ["id", "name", "email", "phone", "role", "createdAt", "updatedAt"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "phone": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": ["customer", "admin"]
+          },
+          "defaultAddress": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreateUserRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "email", "password", "phone"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 72
+          },
+          "phone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "defaultAddress": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 500
+          }
+        }
+      },
+      "LoginRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email", "password"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 72
+          }
+        }
+      },
+      "UpdateUserRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "minProperties": 1,
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "phone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          },
+          "defaultAddress": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 500
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 72
+          }
+        }
+      },
+      "AuthTokenResponse": {
+        "type": "object",
+        "required": ["accessToken", "tokenType", "expiresAt", "user"],
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "Opaque bearer token"
+          },
+          "tokenType": {
+            "type": "string",
+            "enum": ["Bearer"]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      }
+    },
+    "responses": {
+      "BadRequest": {
+        "description": "Invalid request or ObjectId",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Invalid category data"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Category not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Category not found"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Duplicate category name or category referenced by products",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "A category with this name already exists"
+            }
+          }
+        }
+      },
+      "InternalServerError": {
+        "description": "Unexpected server error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "An unexpected error occurred"
+            }
+          }
+        }
+      },
+      "ProductBadRequest": {
+        "description": "Invalid product data or ObjectId",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Invalid product data or product id"
+            }
+          }
+        }
+      },
+      "ProductNotFound": {
+        "description": "Product not found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Product not found"
+            }
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "opaque token"
+      }
+    }
+  }
+}
