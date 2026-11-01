@@ -26,6 +26,14 @@
     {
       "name": "Users",
       "description": "User profile and administration endpoints"
+    },
+    {
+      "name": "Orders",
+      "description": "Delivery order creation and management endpoints"
+    },
+    {
+      "name": "Payments",
+      "description": "Payment record management endpoints"
     }
   ],
   "paths": {
@@ -55,6 +63,7 @@
                   "items": {
                     "$ref": "#/components/schemas/Category"
                   }
+
                 },
                 "example": [
                   {
@@ -1067,10 +1076,635 @@
           }
         }
       }
+    },
+    "/orders": {
+      "get": {
+        "tags": ["Orders"],
+        "summary": "List orders",
+        "description": "Customers receive only their own orders. Admins can list every order.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Orders retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Order"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Orders"],
+        "summary": "Create a delivery order",
+        "description": "Creates an order for the authenticated customer. Replace the illustrative productId in the example with the id of an existing, available product from GET /products. Product names and prices are read from MongoDB; client-supplied prices and totals are rejected. Delivery fee is currently zero because the project has no configured fee.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateOrderRequest"
+              },
+              "example": {
+                "items": [
+                  {
+                    "productId": "653a1f2c9b8e4a6d7f0c1234",
+                    "quantity": 2
+                  }
+                ],
+                "deliveryAddress": "Dankao, Phnom Penh",
+                "deliveryPhone": "010123456"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Order created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/OrderBadRequest"
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "description": "One or more products were not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "One or more products are unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/orders/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Order MongoDB ObjectId",
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          }
+        }
+      ],
+      "get": {
+        "tags": ["Orders"],
+        "summary": "Get an order",
+        "description": "Customers can retrieve only their own orders; admins can retrieve any order. Orders owned by another customer are returned as not found.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/OrderBadRequest"
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/OrderNotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/orders/{id}/status": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          }
+        }
+      ],
+      "put": {
+        "tags": ["Orders"],
+        "summary": "Update order status",
+        "description": "Admin only. Allowed transitions are pending to confirmed/cancelled, confirmed to preparing/cancelled, preparing to out_for_delivery, and out_for_delivery to delivered.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateOrderStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Order status updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/OrderBadRequest"
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/OrderNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/OrderConflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/orders/{id}/cancel": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          }
+        }
+      ],
+      "put": {
+        "tags": ["Orders"],
+        "summary": "Cancel an order",
+        "description": "Customers may cancel only their own pending orders. Admins may cancel pending or confirmed orders.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order cancelled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Order"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/OrderBadRequest"
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/OrderNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/OrderConflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/payments": {
+      "get": {
+        "tags": ["Payments"],
+        "summary": "List payments",
+        "description": "Customers receive only their own payments. Admins can list every payment.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payments retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Payment"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      },
+      "post": {
+        "tags": ["Payments"],
+        "summary": "Create a payment record",
+        "description": "Creates one pending payment record for an owned order. Amount comes from the order total and currency is server-set to USD. Cash on delivery remains pending/unpaid. Card and digital-wallet payments are recorded as pending only; no external payment provider is integrated.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePaymentRequest"
+              },
+              "example": {
+                "orderId": "653a1f2c9b8e4a6d7f0c1234",
+                "paymentMethod": "cash_on_delivery"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Payment record created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/PaymentBadRequest"
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/PaymentNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/PaymentConflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/payments/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "description": "Payment MongoDB ObjectId",
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          }
+        }
+      ],
+      "get": {
+        "tags": ["Payments"],
+        "summary": "Get a payment",
+        "description": "Customers can retrieve only their own payments; admins can retrieve any payment. Payments owned by another customer are returned as not found.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payment retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/PaymentBadRequest"
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/PaymentNotFound"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/payments/{id}/status": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          }
+        }
+      ],
+      "put": {
+        "tags": ["Payments"],
+        "summary": "Update payment status",
+        "description": "Admin only. Allowed transitions are pending to completed/failed and completed to refunded. An administrator must use this endpoint only after trusted payment confirmation; card and digital-wallet payments are not processed by this API. The corresponding order paymentStatus is updated as well.",
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdatePaymentStatusRequest"
+              },
+              "example": {
+                "paymentStatus": "completed"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Payment status updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Payment"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/PaymentBadRequest"
+          },
+          "401": {
+            "description": "Authentication required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/PaymentNotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/PaymentConflict"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "Payment": {
+        "type": "object",
+        "required": [
+          "id",
+          "orderId",
+          "userId",
+          "amount",
+          "currency",
+          "paymentMethod",
+          "transactionReference",
+          "paymentStatus",
+          "paidAt",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "orderId": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "userId": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "amount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "currency": {
+            "type": "string",
+            "enum": ["USD"],
+            "description": "Server-controlled currency; not accepted from clients."
+          },
+          "paymentMethod": {
+            "type": "string",
+            "enum": ["cash_on_delivery", "card", "digital_wallet"]
+          },
+          "transactionReference": {
+            "type": "string",
+            "nullable": true
+          },
+          "paymentStatus": {
+            "type": "string",
+            "enum": ["pending", "completed", "failed", "refunded"]
+          },
+          "paidAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CreatePaymentRequest": {
+        "type": "object",
+        "required": ["orderId", "paymentMethod"],
+        "additionalProperties": false,
+        "properties": {
+          "orderId": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "paymentMethod": {
+            "type": "string",
+            "enum": ["cash_on_delivery", "card", "digital_wallet"]
+          }
+        }
+      },
+      "UpdatePaymentStatusRequest": {
+        "type": "object",
+        "required": ["paymentStatus"],
+        "additionalProperties": false,
+        "properties": {
+          "paymentStatus": {
+            "type": "string",
+            "enum": ["completed", "failed", "refunded"]
+          }
+        }
+      },
       "Category": {
         "type": "object",
         "required": ["_id", "name", "isActive", "createdAt", "updatedAt"],
@@ -1160,6 +1794,173 @@
           "isActive": {
             "type": "boolean",
             "example": false
+          }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "required": [
+          "id",
+          "userId",
+          "items",
+          "deliveryAddress",
+          "deliveryPhone",
+          "subtotal",
+          "deliveryFee",
+          "totalAmount",
+          "orderStatus",
+          "paymentStatus",
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "userId": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/OrderItem"
+            }
+          },
+          "deliveryAddress": {
+            "type": "string"
+          },
+          "deliveryPhone": {
+            "type": "string"
+          },
+          "subtotal": {
+            "type": "number",
+            "minimum": 0
+          },
+          "deliveryFee": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Currently zero; no delivery fee policy is configured."
+          },
+          "totalAmount": {
+            "type": "number",
+            "minimum": 0
+          },
+          "orderStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "confirmed",
+              "preparing",
+              "out_for_delivery",
+              "delivered",
+              "cancelled"
+            ]
+          },
+          "paymentStatus": {
+            "type": "string",
+            "enum": ["unpaid", "pending", "paid", "failed", "refunded"]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "OrderItem": {
+        "type": "object",
+        "required": [
+          "productId",
+          "productName",
+          "unitPrice",
+          "quantity",
+          "subtotal"
+        ],
+        "properties": {
+          "productId": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$",
+            "description": "Must be the id of an existing product from GET /products."
+          },
+          "productName": {
+            "type": "string"
+          },
+          "unitPrice": {
+            "type": "number",
+            "minimum": 0
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "subtotal": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
+      },
+      "CreateOrderRequest": {
+        "type": "object",
+        "required": ["items", "deliveryAddress", "deliveryPhone"],
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 50,
+            "items": {
+              "$ref": "#/components/schemas/CreateOrderItemRequest"
+            }
+          },
+          "deliveryAddress": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "deliveryPhone": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 32
+          }
+        }
+      },
+      "CreateOrderItemRequest": {
+        "type": "object",
+        "required": ["productId", "quantity"],
+        "additionalProperties": false,
+        "properties": {
+          "productId": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{24}$"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 99
+          }
+        }
+      },
+      "UpdateOrderStatusRequest": {
+        "type": "object",
+        "required": ["orderStatus"],
+        "additionalProperties": false,
+        "properties": {
+          "orderStatus": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "confirmed",
+              "preparing",
+              "out_for_delivery",
+              "delivered",
+              "cancelled"
+            ]
           }
         }
       },
@@ -1562,6 +2363,97 @@
             },
             "example": {
               "error": "Product not found"
+            }
+          }
+        }
+      },
+      "OrderBadRequest": {
+        "description": "Invalid order input or MongoDB ObjectId",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Invalid order data or order id"
+            }
+          }
+        }
+      },
+      "OrderNotFound": {
+        "description": "Order not found or not accessible",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Order not found"
+            }
+          }
+        }
+      },
+      "OrderConflict": {
+        "description": "The requested order status transition is not permitted",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Order status transition is not permitted"
+            }
+          }
+        }
+      },
+      "PaymentBadRequest": {
+        "description": "Invalid payment input or MongoDB ObjectId",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Invalid payment data or payment id"
+            }
+          }
+        }
+      },
+      "PaymentNotFound": {
+        "description": "Order or payment not found or not accessible",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Payment not found"
+            }
+          }
+        }
+      },
+      "PaymentConflict": {
+        "description": "A payment already exists or the status transition is not permitted",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Payment is already created or status change is not allowed"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Insufficient permissions",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Insufficient permissions"
             }
           }
         }

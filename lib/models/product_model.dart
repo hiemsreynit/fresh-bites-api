@@ -1,3 +1,8 @@
+// ignore: implementation_imports
+import 'package:bson/src/types/bson_decimal_128.dart';
+import 'package:decimal/decimal.dart';
+import 'package:mongo_dart/mongo_dart.dart';
+
 class Product {
   final String? id;
   final String name;
@@ -23,16 +28,22 @@ class Product {
        updatedAt = updatedAt ?? createdAt ?? DateTime.now();
 
   factory Product.fromMap(Map<String, dynamic> map) {
+    final rawId = map['_id'];
+    final rawCategoryId = map['categoryId'];
+    final createdAt =
+        _dateTimeFromValue(map['createdAt']) ?? DateTime.now().toUtc();
     return Product(
-      id: map['_id']?.toString(),
+      id: rawId is ObjectId ? rawId.oid : rawId?.toString(),
       name: map['name'] as String,
       description: map['description'] as String?,
-      price: (map['price'] as num).toDouble(),
-      categoryId: map['categoryId'].toString(),
+      price: _priceAsDouble(map['price']),
+      categoryId: rawCategoryId is ObjectId
+          ? rawCategoryId.oid
+          : rawCategoryId.toString(),
       imageUrl: map['imageUrl'] as String?,
-      isAvailable: map['isAvailable'] as bool,
-      createdAt: map['createdAt'] as DateTime,
-      updatedAt: map['updatedAt'] as DateTime,
+      isAvailable: _availabilityFromValue(map['isAvailable']),
+      createdAt: createdAt,
+      updatedAt: _dateTimeFromValue(map['updatedAt']) ?? createdAt,
     );
   }
 
@@ -54,7 +65,7 @@ class Product {
     return {
       'name': name,
       if (description != null) 'description': description,
-      'price': price,
+      'price': Decimal.parse(price.toString()),
       'categoryId': categoryId,
       if (imageUrl != null) 'imageUrl': imageUrl,
       'isAvailable': isAvailable,
@@ -76,4 +87,26 @@ class Product {
       'updatedAt': updatedAt.toIso8601String(),
     };
   }
+}
+
+double _priceAsDouble(dynamic value) {
+  if (value is num) return value.toDouble();
+  if (value is Decimal) return value.toDouble();
+  if (value is BsonDecimal128) {
+    final decimal = value.value;
+    if (decimal != null) return decimal.toDouble();
+  }
+  throw const FormatException('Invalid product price.');
+}
+
+bool _availabilityFromValue(dynamic value) {
+  if (value == null) return true;
+  if (value is bool) return value;
+  throw const FormatException('Invalid product availability.');
+}
+
+DateTime? _dateTimeFromValue(dynamic value) {
+  if (value == null) return null;
+  if (value is DateTime) return value;
+  throw const FormatException('Invalid product timestamp.');
 }

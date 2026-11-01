@@ -1,6 +1,6 @@
 import 'package:dart_frog/dart_frog.dart';
 
-import '../../lib/controllers/product_controller.dart';
+import 'package:fresh_bites_api/controllers/product_controller.dart';
 
 final _controller = ProductController();
 

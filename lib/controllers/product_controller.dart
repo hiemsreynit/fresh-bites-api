@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dart_frog/dart_frog.dart';
 
 import 'package:fresh_bites_api/models/product_model.dart';
@@ -14,7 +16,10 @@ class ProductController {
       return Response.json(
         body: products.map((product) => product.toJson()).toList(),
       );
-    } catch (_) {
+    } catch (error) {
+      stderr.writeln(
+        'Product listing failed (${error.runtimeType}): $error',
+      );
       return _internalServerError();
     }
   }
@@ -27,13 +32,14 @@ class ProductController {
     if (product == null) return _badRequest();
 
     try {
-      final id = await _repository.create(product);
+      final savedProduct = await _repository.create(product);
 
       return Response.json(
         statusCode: 201,
-        body: product.withId(id).toJson(),
+        body: savedProduct.toJson(),
       );
-    } catch (_) {
+    } catch (error) {
+      stderr.writeln('Product creation failed (${error.runtimeType}): $error');
       return _internalServerError();
     }
   }
@@ -46,7 +52,10 @@ class ProductController {
       if (product == null) return _notFound();
 
       return Response.json(body: product.toJson());
-    } catch (_) {
+    } catch (error) {
+      stderr.writeln(
+        'Product lookup failed (${error.runtimeType}): $error',
+      );
       return _internalServerError();
     }
   }
@@ -68,7 +77,8 @@ class ProductController {
       if (saved == null) return _notFound();
 
       return Response.json(body: saved.toJson());
-    } catch (_) {
+    } catch (error) {
+      stderr.writeln('Product update failed (${error.runtimeType}).');
       return _internalServerError();
     }
   }
@@ -81,7 +91,8 @@ class ProductController {
       if (!deleted) return _notFound();
 
       return Response(statusCode: 204);
-    } catch (_) {
+    } catch (error) {
+      stderr.writeln('Product deletion failed (${error.runtimeType}).');
       return _internalServerError();
     }
   }

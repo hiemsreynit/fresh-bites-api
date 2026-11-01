@@ -1,6 +1,7 @@
 import 'package:mongo_dart/mongo_dart.dart';
-import '../database/mongodb.dart';
-import '../models/product_model.dart';
+
+import 'package:fresh_bites_api/database/mongodb.dart';
+import 'package:fresh_bites_api/models/product_model.dart';
 
 class ProductRepository {
   DbCollection get _collection => MongoDatabase.db.collection('products');
@@ -18,17 +19,34 @@ class ProductRepository {
     return document == null ? null : Product.fromMap(document);
   }
 
-  Future<String> create(Product product) async {
+  Future<Product> create(Product product) async {
     final document = product.toMap()
       ..['categoryId'] = ObjectId.parse(product.categoryId);
     final result = await _collection.insertOne(document);
-    return result.id.toString();
+    if (!result.isSuccess) {
+      final writeError = result.writeError;
+      throw StateError(
+        'MongoDB rejected product insert'
+        '${writeError?.code == null ? '' : ' (${writeError!.code})'}'
+        '${writeError?.errmsg == null ? '' : ': ${writeError!.errmsg}'}',
+      );
+    }
+
+    final id = result.id;
+    if (id is! ObjectId) {
+      throw StateError('MongoDB did not return a product ObjectId.');
+    }
+    final savedProduct = await getById(id.oid);
+    if (savedProduct == null) {
+      throw StateError('Created product could not be reloaded.');
+    }
+    return savedProduct;
   }
 
   Future<bool> update(String id, Product product) async {
     final modifier = modify
         .set('name', product.name)
-        .set('price', product.price)
+        .set('price', product.toMap()['price'])
         .set('categoryId', ObjectId.parse(product.categoryId))
         .set('isAvailable', product.isAvailable)
         .set('updatedAt', DateTime.now());
@@ -47,6 +65,14 @@ class ProductRepository {
       where.id(ObjectId.parse(id)),
       modifier,
     );
+    if (!result.isSuccess) {
+      final writeError = result.writeError;
+      throw StateError(
+        'MongoDB rejected product update'
+        '${writeError?.code == null ? '' : ' (${writeError!.code})'}'
+        '${writeError?.errmsg == null ? '' : ': ${writeError!.errmsg}'}',
+      );
+    }
 
     return result.nMatched > 0;
   }

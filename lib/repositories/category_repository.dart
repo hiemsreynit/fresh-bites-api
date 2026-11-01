@@ -34,7 +34,11 @@ class CategoryRepository {
   Future<Category> create(Category category) async {
     try {
       final result = await _collection.insertOne(category.toDocument());
-      return category.withId(result.id.toString());
+      final id = result.id;
+      if (id is! ObjectId) {
+        throw StateError('MongoDB did not return a category ObjectId.');
+      }
+      return category.withId(id.oid);
     } on MongoDartError catch (error) {
       if (_isDuplicateKeyError(error)) {
         throw const DuplicateCategoryNameException();

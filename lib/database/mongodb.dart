@@ -352,6 +352,13 @@ class MongoDatabase {
       'orderId': 1,
       'createdAt': -1,
     });
+
+    await _createIndex(
+      'payments',
+      'payment_order_unique',
+      {'orderId': 1},
+      unique: true,
+    );
   }
 
   static Future<void> _createIndex(

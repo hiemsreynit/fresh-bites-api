@@ -1,3 +1,5 @@
+import 'package:mongo_dart/mongo_dart.dart';
+
 class Category {
   final String? id;
   final String name;
@@ -18,8 +20,9 @@ class Category {
   });
 
   factory Category.fromMap(Map<String, dynamic> map) {
+    final rawId = map['_id'];
     return Category(
-      id: map['_id']?.toString(),
+      id: rawId is ObjectId ? rawId.oid : rawId?.toString(),
       name: map['name'] as String,
       description: map['description'] as String?,
       imageUrl: map['imageUrl'] as String?,
