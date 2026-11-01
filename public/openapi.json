@@ -271,6 +271,9 @@
               }
             }
           },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
@@ -407,7 +410,7 @@
       "post": {
         "tags": ["Authentication"],
         "summary": "Register a customer",
-        "description": "Public registration always assigns the customer role. The role field is not accepted.",
+        "description": "Creates an unverified customer account, stores no plaintext OTP, and sends a six-digit verification code by email. The code expires after 10 minutes and registration always assigns the customer role.",
         "requestBody": {
           "required": true,
           "content": {
@@ -419,12 +422,15 @@
           }
         },
         "responses": {
-          "201": {
-            "description": "Customer registered",
+          "202": {
+            "description": "Customer registered; verification email accepted",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/AuthTokenResponse"
+                  "$ref": "#/components/schemas/MessageResponse"
+                },
+                "example": {
+                  "message": "Registration successful. Verify the OTP sent to your email."
                 }
               }
             }
@@ -467,6 +473,112 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/auth/verify-otp": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Verify a registration OTP",
+        "description": "Verifies a single-use six-digit code. Codes expire after 10 minutes and allow at most five attempts.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyOtpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email verified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or OTP",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Invalid or expired OTP"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Email is already verified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "OTP verification attempt limit exceeded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
+          }
+        }
+      }
+    },
+    "/auth/resend-otp": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Resend a registration OTP",
+        "description": "Sends a new code for eligible unverified accounts. Resends have a one-minute cooldown; the response does not disclose whether an account exists or is eligible.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResendOtpRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Request accepted without disclosing account status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "503": {
+            "$ref": "#/components/responses/ServiceUnavailable"
+          },
+          "500": {
+            "$ref": "#/components/responses/InternalServerError"
           }
         }
       }
@@ -518,6 +630,19 @@
                 },
                 "example": {
                   "error": "Invalid email or password"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Email verification required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                },
+                "example": {
+                  "error": "Email verification is required before login"
                 }
               }
             }
@@ -1169,7 +1294,7 @@
       },
       "User": {
         "type": "object",
-        "required": ["id", "name", "email", "phone", "role", "createdAt", "updatedAt"],
+        "required": ["id", "name", "email", "phone", "role", "emailVerified", "createdAt", "updatedAt"],
         "properties": {
           "id": {
             "type": "string",
@@ -1188,6 +1313,10 @@
           "role": {
             "type": "string",
             "enum": ["customer", "admin"]
+          },
+          "emailVerified": {
+            "type": "boolean",
+            "description": "Whether the user's email address has been verified"
           },
           "defaultAddress": {
             "type": "string",
@@ -1252,6 +1381,44 @@
           }
         }
       },
+      "VerifyOtpRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email", "otp"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          },
+          "otp": {
+            "type": "string",
+            "pattern": "^\\d{6}$",
+            "description": "Six-digit email verification code"
+          }
+        }
+      },
+      "ResendOtpRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["email"],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 254
+          }
+        }
+      },
+      "MessageResponse": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      },
       "UpdateUserRequest": {
         "type": "object",
         "additionalProperties": false,
@@ -1265,7 +1432,8 @@
           "email": {
             "type": "string",
             "format": "email",
-            "maxLength": 254
+            "maxLength": 254,
+            "description": "Changing the email address clears its verification status and revokes existing access tokens."
           },
           "phone": {
             "type": "string",
@@ -1355,6 +1523,19 @@
             },
             "example": {
               "error": "An unexpected error occurred"
+            }
+          }
+        }
+      },
+      "ServiceUnavailable": {
+        "description": "Email verification delivery is unavailable",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Email verification is temporarily unavailable. Correct the SMTP configuration and request a new OTP."
             }
           }
         }

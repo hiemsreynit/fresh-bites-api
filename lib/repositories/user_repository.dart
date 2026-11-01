@@ -17,6 +17,7 @@ class UserRepository {
 
   DbCollection get _users => MongoDatabase.db.collection('users');
   DbCollection get _tokens => MongoDatabase.db.collection('auth_tokens');
+  DbCollection get _otps => MongoDatabase.db.collection('auth_otps');
 
   Future<List<User>> getAll() async {
     final documents = await _users.find().toList();
@@ -53,6 +54,7 @@ class UserRepository {
       'phone': phone,
       'role': 'customer',
       'defaultAddress': defaultAddress,
+      'emailVerified': false,
       'createdAt': now,
       'updatedAt': now,
     };
@@ -73,6 +75,9 @@ class UserRepository {
     for (final entry in changes.entries) {
       modifier.set(entry.key, entry.value);
     }
+    if (changes.containsKey('email')) {
+      modifier.set('emailVerified', false);
+    }
 
     try {
       final userId = ObjectId.parse(id);
@@ -81,8 +86,11 @@ class UserRepository {
         modifier,
       );
       if (result.nMatched == 0) return null;
-      if (changes.containsKey('passwordHash')) {
+      if (changes.containsKey('passwordHash') || changes.containsKey('email')) {
         await _tokens.deleteMany(where.eq('userId', userId));
+      }
+      if (changes.containsKey('email')) {
+        await _otps.deleteOne(where.eq('userId', userId));
       }
       return await getById(id);
     } on MongoDartError catch (error) {
@@ -96,8 +104,98 @@ class UserRepository {
   Future<bool> delete(String id) async {
     final userId = ObjectId.parse(id);
     await _tokens.deleteMany(where.eq('userId', userId));
+    await _otps.deleteOne(where.eq('userId', userId));
     final result = await _users.deleteOne(where.id(userId));
     return result.nRemoved > 0;
+  }
+
+  Future<Map<String, dynamic>?> getOtp(String userId) async {
+    return _otps.findOne(where.eq('userId', ObjectId.parse(userId)));
+  }
+
+  Future<bool> saveOtpIfCooldownElapsed({
+    required String userId,
+    required String otpHash,
+    required DateTime expiresAt,
+    required DateTime sentAt,
+    required Duration resendCooldown,
+  }) async {
+    final id = ObjectId.parse(userId);
+    final selector = {
+      'userId': id,
+      'sentAt': {r'$lte': sentAt.subtract(resendCooldown)},
+    };
+
+    try {
+      final result = await _otps.updateOne(
+        selector,
+        {
+          r'$set': {
+            'otpHash': otpHash,
+            'attempts': 0,
+            'expiresAt': expiresAt,
+            'sentAt': sentAt,
+          },
+          r'$setOnInsert': {'userId': id},
+        },
+        upsert: true,
+      );
+      return result.nMatched > 0 || result.nUpserted > 0;
+    } on MongoDartError catch (error) {
+      if (_isDuplicateKeyError(error)) return false;
+      rethrow;
+    }
+  }
+
+  Future<void> deleteOtp(String userId, String otpHash) async {
+    await _otps.deleteOne(
+      where.eq('userId', ObjectId.parse(userId)).eq('otpHash', otpHash),
+    );
+  }
+
+  Future<void> recordOtpAttempt(
+    String userId,
+    String otpHash,
+    DateTime now,
+    int limit,
+  ) async {
+    await _otps.updateOne(
+      where
+          .eq('userId', ObjectId.parse(userId))
+          .eq('otpHash', otpHash)
+          .gt('expiresAt', now)
+          .lt('attempts', limit),
+      modify.inc('attempts', 1),
+    );
+  }
+
+  Future<bool> consumeOtp(
+    String userId,
+    String otpHash,
+    DateTime now,
+    int limit,
+  ) async {
+    final result = await _otps.deleteOne(
+      where
+          .eq('userId', ObjectId.parse(userId))
+          .eq('otpHash', otpHash)
+          .gt('expiresAt', now)
+          .lt('attempts', limit),
+    );
+    return result.nRemoved > 0;
+  }
+
+  Future<bool> markEmailVerified(String userId, String email) async {
+    final result = await _users.updateOne(
+      where
+          .id(ObjectId.parse(userId))
+          .eq('email', email)
+          .eq('emailVerified', false),
+      modify
+          .set('emailVerified', true)
+          .set('updatedAt', DateTime.now().toUtc()),
+    );
+    return result.nMatched > 0;
   }
 
   Future<String> createAccessToken(

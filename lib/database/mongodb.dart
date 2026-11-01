@@ -104,6 +104,7 @@ class MongoDatabase {
           allowed: ['customer', 'admin'],
         ),
         'defaultAddress': _field('string', nullable: true),
+        'emailVerified': _field('bool'),
         'createdAt': _field('date'),
         'updatedAt': _field('date'),
       },
@@ -116,6 +117,17 @@ class MongoDatabase {
         'userId': _field('objectId'),
         'expiresAt': _field('date'),
         'createdAt': _field('date'),
+      },
+    ),
+
+    'auth_otps': _schema(
+      ['userId', 'otpHash', 'attempts', 'expiresAt', 'sentAt'],
+      {
+        'userId': _field('objectId'),
+        'otpHash': _field('string'),
+        'attempts': _field('int', minimum: 0),
+        'expiresAt': _field('date'),
+        'sentAt': _field('date'),
       },
     ),
 
@@ -308,6 +320,17 @@ class MongoDatabase {
     await _createIndex(
       'auth_tokens',
       'token_expiration_ttl',
+      {'expiresAt': 1},
+      expireAfterSeconds: 0,
+    );
+
+    await _createIndex('auth_otps', 'otp_user_unique', {
+      'userId': 1,
+    }, unique: true);
+
+    await _createIndex(
+      'auth_otps',
+      'otp_expiration_ttl',
       {'expiresAt': 1},
       expireAfterSeconds: 0,
     );

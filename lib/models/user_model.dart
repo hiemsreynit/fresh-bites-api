@@ -7,6 +7,7 @@ class User {
   final String phone;
   final String role;
   final String? defaultAddress;
+  final bool emailVerified;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -17,6 +18,7 @@ class User {
     required this.phone,
     required this.role,
     this.defaultAddress,
+    this.emailVerified = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -30,6 +32,7 @@ class User {
       phone: map['phone'] as String,
       role: map['role'] as String,
       defaultAddress: map['defaultAddress'] as String?,
+      emailVerified: map['emailVerified'] == true,
       createdAt: map['createdAt'] as DateTime,
       updatedAt: map['updatedAt'] as DateTime,
     );
@@ -41,6 +44,7 @@ class User {
     'phone': phone,
     'role': role,
     'defaultAddress': defaultAddress,
+    'emailVerified': emailVerified,
     'createdAt': createdAt,
     'updatedAt': updatedAt,
   };
@@ -52,6 +56,7 @@ class User {
     'phone': phone,
     'role': role,
     'defaultAddress': defaultAddress,
+    'emailVerified': emailVerified,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
   };

@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:dart_frog/dart_frog.dart';
 
 import 'package:fresh_bites_api/models/user_model.dart';
@@ -15,10 +13,7 @@ Middleware authenticationMiddleware() {
         final user = await UserRepository().getUserForAccessToken(token);
         if (user == null) return _unauthorized();
         return await handler(context.provide<User>(() => user));
-      } catch (error) {
-        stderr.writeln(
-          'Authentication lookup failed: ${error.runtimeType}',
-        );
+      } catch (_) {
         return Response.json(
           statusCode: 500,
           body: {'error': 'An unexpected error occurred'},

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:dart_frog/dart_frog.dart';
 
 import 'package:fresh_bites_api/models/category_model.dart';
@@ -25,7 +27,8 @@ class CategoryController {
       return Response.json(
         body: categories.map((category) => category.toJson()).toList(),
       );
-    } catch (_) {
+    } catch (error) {
+      stderr.writeln('Category listing failed (${error.runtimeType}).');
       return _internalServerError();
     }
   }

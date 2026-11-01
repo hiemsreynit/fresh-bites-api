@@ -16,7 +16,7 @@ class UserController {
       final users = await _repository.getAll();
       return Response.json(body: users.map((user) => user.toJson()).toList());
     } catch (error) {
-      stderr.writeln('User operation failed (${error.runtimeType}).');
+      stderr.writeln('User listing failed (${error.runtimeType}).');
       return _internalServerError();
     }
   }
@@ -27,8 +27,7 @@ class UserController {
       final user = await _repository.getById(id);
       if (user == null) return _notFound();
       return Response.json(body: user.toJson());
-    } catch (error) {
-      stderr.writeln('User operation failed (${error.runtimeType}).');
+    } catch (_) {
       return _internalServerError();
     }
   }
@@ -54,8 +53,7 @@ class UserController {
         statusCode: 409,
         body: {'error': 'A user with this email already exists'},
       );
-    } catch (error) {
-      stderr.writeln('User operation failed (${error.runtimeType}).');
+    } catch (_) {
       return _internalServerError();
     }
   }
@@ -70,8 +68,7 @@ class UserController {
     try {
       if (!await _repository.delete(id)) return _notFound();
       return Response(statusCode: 204);
-    } catch (error) {
-      stderr.writeln('User operation failed (${error.runtimeType}).');
+    } catch (_) {
       return _internalServerError();
     }
   }
