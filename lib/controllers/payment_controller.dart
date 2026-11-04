@@ -5,9 +5,12 @@ import 'package:dart_frog/dart_frog.dart';
 import 'package:fresh_bites_api/models/payment_model.dart';
 import 'package:fresh_bites_api/models/user_model.dart';
 import 'package:fresh_bites_api/repositories/payment_repository.dart';
+import 'package:fresh_bites_api/services/bakong_service.dart';
+import 'package:fresh_bites_api/services/payment_service.dart';
 
 class PaymentController {
   final PaymentRepository _repository = PaymentRepository();
+  final PaymentService _service = PaymentService();
   static final _idPattern = RegExp(r'^[a-fA-F0-9]{24}$');
 
   Future<Response> create(RequestContext context) async {
@@ -22,7 +25,7 @@ class PaymentController {
     if (request == null) return _badRequest();
 
     try {
-      final payment = await _repository.create(
+      final payment = await _service.createPayment(
         orderId: request.orderId,
         userId: userId,
         paymentMethod: request.paymentMethod,
@@ -32,6 +35,12 @@ class PaymentController {
       return _notFound();
     } on PaymentConflictException {
       return _conflict();
+    } on PaymentProviderConfigurationException catch (error) {
+      stderr.writeln('Payment provider configuration error: ${error.message}');
+      return _serviceUnavailable(error.message);
+    } on BakongIntegrationUnavailableException catch (error) {
+      stderr.writeln('Bakong integration unavailable.');
+      return _serviceUnavailable(error.toString());
     } on InvalidPaymentOrderException {
       stderr.writeln('Payment order data is invalid.');
       return _internalServerError();
@@ -51,7 +60,7 @@ class PaymentController {
         userId: user.role == 'admin' ? null : user.id,
       );
       return Response.json(
-        body: payments.map((payment) => payment.toJson()).toList(),
+        body: payments.map(_service.paymentToJson).toList(),
       );
     } catch (error) {
       stderr.writeln('Payment listing failed (${error.runtimeType}).');
@@ -65,7 +74,7 @@ class PaymentController {
     try {
       final payment = await _repository.getById(id);
       if (payment == null || !_canAccess(user, payment)) return _notFound();
-      return Response.json(body: payment.toJson());
+      return Response.json(body: _service.paymentToJson(payment));
     } catch (error) {
       stderr.writeln('Payment lookup failed (${error.runtimeType}).');
       return _internalServerError();
@@ -90,6 +99,7 @@ class PaymentController {
     if (rawStatus is! String) return _badRequest();
     final nextStatus = PaymentStatus.fromValue(rawStatus);
     if (nextStatus == null) return _badRequest();
+    if (nextStatus == PaymentStatus.completed) return _conflict();
 
     try {
       final current = await _repository.getById(id);
@@ -103,7 +113,9 @@ class PaymentController {
       );
       if (!updated) return _conflict();
       final saved = await _repository.getById(id);
-      return saved == null ? _notFound() : Response.json(body: saved.toJson());
+      return saved == null
+          ? _notFound()
+          : Response.json(body: _service.paymentToJson(saved));
     } on PaymentConflictException {
       return _conflict();
     } catch (error) {
@@ -167,6 +179,11 @@ class PaymentController {
     body: {
       'error': 'Payment is already created or status change is not allowed',
     },
+  );
+
+  Response _serviceUnavailable(String message) => Response.json(
+    statusCode: 503,
+    body: {'error': message},
   );
 
   Response _internalServerError() => Response.json(

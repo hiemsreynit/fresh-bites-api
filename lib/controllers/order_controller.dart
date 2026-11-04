@@ -107,11 +107,16 @@ class OrderController {
       if (!current.orderStatus.canTransitionTo(nextStatus)) {
         return _invalidTransition();
       }
+      if (nextStatus == OrderStatus.preparing &&
+          ['pending', 'failed'].contains(current.paymentStatus)) {
+        return _invalidTransition();
+      }
 
       final updated = await _repository.updateStatus(
         id: id,
         expectedStatus: current.orderStatus,
         newStatus: nextStatus,
+        expectedPaymentStatus: current.paymentStatus,
       );
       if (!updated) return _invalidTransition();
       final saved = await _repository.getById(id);
@@ -133,6 +138,9 @@ class OrderController {
       if (!isAdmin && current.orderStatus != OrderStatus.pending) {
         return _invalidTransition();
       }
+      if (['pending', 'paid'].contains(current.paymentStatus)) {
+        return _invalidTransition();
+      }
       if (!current.orderStatus.canTransitionTo(OrderStatus.cancelled)) {
         return _invalidTransition();
       }
@@ -141,6 +149,7 @@ class OrderController {
         id: id,
         expectedStatus: current.orderStatus,
         newStatus: OrderStatus.cancelled,
+        expectedPaymentStatus: current.paymentStatus,
       );
       if (!updated) return _invalidTransition();
       final saved = await _repository.getById(id);

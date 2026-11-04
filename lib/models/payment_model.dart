@@ -54,7 +54,10 @@ class Payment {
   final double amount;
   final String currency;
   final PaymentMethod paymentMethod;
+  final String paymentProvider;
   final String? transactionReference;
+  final String? providerTransactionId;
+  final String? qrData;
   final PaymentStatus paymentStatus;
   final DateTime? paidAt;
   final DateTime createdAt;
@@ -67,7 +70,10 @@ class Payment {
     required this.amount,
     required this.currency,
     required this.paymentMethod,
+    required this.paymentProvider,
     required this.transactionReference,
+    required this.providerTransactionId,
+    required this.qrData,
     required this.paymentStatus,
     required this.paidAt,
     required this.createdAt,
@@ -98,7 +104,10 @@ class Payment {
       amount: amount.toDouble(),
       currency: map['currency'] as String,
       paymentMethod: method,
+      paymentProvider: map['paymentProvider'] as String? ?? 'legacy',
       transactionReference: map['transactionReference'] as String?,
+      providerTransactionId: map['providerTransactionId'] as String?,
+      qrData: map['qrData'] as String?,
       paymentStatus: status,
       paidAt: map['paidAt'] as DateTime?,
       createdAt: map['createdAt'] as DateTime,
@@ -113,7 +122,10 @@ class Payment {
     'amount': amount,
     'currency': currency,
     'paymentMethod': paymentMethod.value,
+    'paymentProvider': paymentProvider,
     'transactionReference': transactionReference,
+    'providerTransactionId': providerTransactionId,
+    'qrData': qrData,
     'paymentStatus': paymentStatus.value,
     'paidAt': paidAt?.toIso8601String(),
     'createdAt': createdAt.toIso8601String(),

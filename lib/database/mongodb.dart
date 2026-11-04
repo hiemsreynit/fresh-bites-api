@@ -173,6 +173,7 @@ class MongoDatabase {
         'subtotal',
         'deliveryFee',
         'totalAmount',
+        'currency',
         'orderStatus',
         'paymentStatus',
         'createdAt',
@@ -206,6 +207,7 @@ class MongoDatabase {
         'subtotal': _field('decimal', minimum: 0),
         'deliveryFee': _field('decimal', minimum: 0),
         'totalAmount': _field('decimal', minimum: 0),
+        'currency': _field('string', allowed: ['USD', 'KHR']),
         'orderStatus': _field(
           'string',
           allowed: [
@@ -259,10 +261,19 @@ class MongoDatabase {
             'digital_wallet',
           ],
         ),
+        'paymentProvider': _field(
+          'string',
+          allowed: ['demo', 'bakong', 'cash_on_delivery', 'legacy'],
+        ),
         'transactionReference': _field(
           'string',
           nullable: true,
         ),
+        'providerTransactionId': _field(
+          'string',
+          nullable: true,
+        ),
+        'qrData': _field('string', nullable: true),
         'paymentStatus': _field(
           'string',
           allowed: [
@@ -307,6 +318,26 @@ class MongoDatabase {
           }.cast<String, Object>(),
         );
       }
+    }
+
+    final orderCurrencyMigration = await db.runCommand(
+      {
+        'update': 'orders',
+        'updates': [
+          {
+            'q': {
+              'currency': {r'$exists': false},
+            },
+            'u': {
+              r'$set': {'currency': 'USD'},
+            },
+            'multi': true,
+          },
+        ],
+      }.cast<String, Object>(),
+    );
+    if (orderCurrencyMigration['ok'] != 1) {
+      throw StateError('Could not migrate legacy order currency values.');
     }
 
     await _createIndex('users', 'email_unique', {
@@ -359,6 +390,24 @@ class MongoDatabase {
       {'orderId': 1},
       unique: true,
     );
+    await _createIndex(
+      'payments',
+      'payment_reference_unique',
+      {'transactionReference': 1},
+      unique: true,
+      partialFilterExpression: {
+        'transactionReference': {r'$type': 'string'},
+      },
+    );
+    await _createIndex(
+      'payments',
+      'provider_transaction_unique',
+      {'providerTransactionId': 1},
+      unique: true,
+      partialFilterExpression: {
+        'providerTransactionId': {r'$type': 'string'},
+      },
+    );
   }
 
   static Future<void> _createIndex(
@@ -367,6 +416,7 @@ class MongoDatabase {
     Map<String, int> keys, {
     bool unique = false,
     int? expireAfterSeconds,
+    Map<String, Object>? partialFilterExpression,
   }) async {
     await db.runCommand(
       {
@@ -378,6 +428,8 @@ class MongoDatabase {
             if (unique) 'unique': true,
             if (expireAfterSeconds != null)
               'expireAfterSeconds': expireAfterSeconds,
+            if (partialFilterExpression != null)
+              'partialFilterExpression': partialFilterExpression,
           },
         ],
       }.cast<String, Object>(),

@@ -68,6 +68,7 @@ void main() {
       'subtotal': Decimal.parse('16'),
       'deliveryFee': Decimal.zero,
       'totalAmount': Decimal.parse('16'),
+      'currency': 'USD',
       'orderStatus': 'pending',
       'paymentStatus': 'unpaid',
       'createdAt': now,
@@ -77,5 +78,6 @@ void main() {
     expect(order.items.single.unitPrice, 8);
     expect(order.items.single.subtotal, 16);
     expect(order.totalAmount, 16);
+    expect(order.currency, 'USD');
   });
 }

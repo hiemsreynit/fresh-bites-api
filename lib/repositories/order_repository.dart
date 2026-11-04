@@ -82,6 +82,7 @@ class OrderRepository {
       'subtotal': subtotal,
       'deliveryFee': _deliveryFee,
       'totalAmount': total,
+      'currency': 'USD',
       'orderStatus': OrderStatus.pending.value,
       'paymentStatus': 'unpaid',
       'createdAt': now,
@@ -112,9 +113,16 @@ class OrderRepository {
     required String id,
     required OrderStatus expectedStatus,
     required OrderStatus newStatus,
+    String? expectedPaymentStatus,
   }) async {
+    final selector = where
+        .id(ObjectId.parse(id))
+        .eq('orderStatus', expectedStatus.value);
+    if (expectedPaymentStatus != null) {
+      selector.eq('paymentStatus', expectedPaymentStatus);
+    }
     final result = await _orders.updateOne(
-      where.id(ObjectId.parse(id)).eq('orderStatus', expectedStatus.value),
+      selector,
       modify
           .set('orderStatus', newStatus.value)
           .set('updatedAt', DateTime.now().toUtc()),

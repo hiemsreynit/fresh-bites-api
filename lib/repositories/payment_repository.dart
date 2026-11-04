@@ -6,6 +6,7 @@ import 'package:bson/src/types/bson_decimal_128.dart';
 import 'package:mongo_dart/mongo_dart.dart';
 
 import 'package:fresh_bites_api/database/mongodb.dart';
+import 'package:fresh_bites_api/models/order_model.dart';
 import 'package:fresh_bites_api/models/payment_model.dart';
 
 class PaymentOrderNotFoundException implements Exception {}
@@ -18,10 +19,30 @@ class PaymentRepository {
   DbCollection get _payments => MongoDatabase.db.collection('payments');
   DbCollection get _orders => MongoDatabase.db.collection('orders');
 
+  Future<Order> getPayableOrder({
+    required String orderId,
+    required String userId,
+  }) async {
+    final order = await _orders.findOne(
+      where.id(ObjectId.parse(orderId)),
+    );
+    if (order == null || order['userId'] is! ObjectId) {
+      throw PaymentOrderNotFoundException();
+    }
+    if ((order['userId'] as ObjectId).oid != userId) {
+      throw PaymentOrderNotFoundException();
+    }
+    _validatePayableOrder(order);
+    return Order.fromMap(order);
+  }
+
   Future<Payment> create({
     required String orderId,
     required String userId,
     required PaymentMethod paymentMethod,
+    required String paymentProvider,
+    required String transactionReference,
+    String? qrData,
   }) async {
     final orderObjectId = ObjectId.parse(orderId);
     final order = await _orders.findOne(where.id(orderObjectId));
@@ -31,15 +52,9 @@ class PaymentRepository {
     if ((order['userId'] as ObjectId).oid != userId) {
       throw PaymentOrderNotFoundException();
     }
-    if (order['orderStatus'] == 'cancelled' ||
-        order['paymentStatus'] != 'unpaid') {
-      throw PaymentConflictException();
-    }
-
+    _validatePayableOrder(order);
     final amount = _decimalAmount(order['totalAmount']);
-    if (amount == null || amount < Decimal.zero) {
-      throw InvalidPaymentOrderException();
-    }
+    final currency = order['currency'];
     final existing = await _payments.findOne(
       where.eq('orderId', orderObjectId),
     );
@@ -47,7 +62,12 @@ class PaymentRepository {
 
     final now = DateTime.now().toUtc();
     final currentOrderStatus = order['orderStatus'];
-    if (currentOrderStatus is! String) throw InvalidPaymentOrderException();
+    if (currentOrderStatus is! String ||
+        amount == null ||
+        amount < Decimal.zero ||
+        currency is! String) {
+      throw InvalidPaymentOrderException();
+    }
 
     final orderPaymentStatus = paymentMethod == PaymentMethod.cashOnDelivery
         ? 'unpaid'
@@ -71,9 +91,12 @@ class PaymentRepository {
       'orderId': orderObjectId,
       'userId': ObjectId.parse(userId),
       'amount': amount,
-      'currency': 'USD',
+      'currency': currency,
       'paymentMethod': paymentMethod.value,
-      'transactionReference': null,
+      'paymentProvider': paymentProvider,
+      'transactionReference': transactionReference,
+      'providerTransactionId': null,
+      'qrData': qrData,
       'paymentStatus': PaymentStatus.pending.value,
       'paidAt': null,
       'createdAt': now,
@@ -135,6 +158,9 @@ class PaymentRepository {
     required Payment payment,
     required PaymentStatus newStatus,
   }) async {
+    if (newStatus == PaymentStatus.completed) {
+      throw PaymentConflictException();
+    }
     final orderId = ObjectId.parse(payment.orderId);
     final order = await _orders.findOne(where.id(orderId));
     if (order == null) throw PaymentConflictException();
@@ -143,11 +169,6 @@ class PaymentRepository {
     if (order['paymentStatus'] != oldOrderPaymentStatus) {
       throw PaymentConflictException();
     }
-    if (newStatus == PaymentStatus.completed &&
-        order['orderStatus'] == 'cancelled') {
-      throw PaymentConflictException();
-    }
-
     final newOrderPaymentStatus = _orderPaymentStatus(
       payment,
       statusOverride: newStatus,
@@ -162,9 +183,6 @@ class PaymentRepository {
     final modifier = modify
         .set('paymentStatus', newStatus.value)
         .set('updatedAt', now);
-    if (newStatus == PaymentStatus.completed) {
-      modifier.set('paidAt', now);
-    }
     try {
       final paymentUpdate = await _payments.updateOne(
         where
@@ -190,6 +208,86 @@ class PaymentRepository {
       now,
     );
     return false;
+  }
+
+  Future<bool> completeVerifiedPayment({
+    required String paymentId,
+    required String providerTransactionId,
+  }) async {
+    if (providerTransactionId.trim().isEmpty) {
+      throw PaymentConflictException();
+    }
+
+    final paymentObjectId = ObjectId.parse(paymentId);
+    final paymentDocument = await _payments.findOne(where.id(paymentObjectId));
+    if (paymentDocument == null) throw PaymentConflictException();
+    final payment = Payment.fromMap(paymentDocument);
+    if (payment.paymentStatus != PaymentStatus.pending ||
+        payment.paymentProvider != 'bakong' ||
+        payment.paymentMethod == PaymentMethod.cashOnDelivery) {
+      throw PaymentConflictException();
+    }
+
+    final orderId = ObjectId.parse(payment.orderId);
+    final order = await _orders.findOne(where.id(orderId));
+    if (order == null ||
+        !['pending', 'confirmed'].contains(order['orderStatus']) ||
+        order['paymentStatus'] != 'pending') {
+      throw PaymentConflictException();
+    }
+
+    final now = DateTime.now().toUtc();
+    final orderUpdate = await _orders.updateOne(
+      where
+          .id(orderId)
+          .eq('orderStatus', order['orderStatus'])
+          .eq('paymentStatus', 'pending'),
+      modify.set('paymentStatus', 'paid').set('updatedAt', now),
+    );
+    if (orderUpdate.nMatched == 0) throw PaymentConflictException();
+
+    try {
+      final paymentUpdate = await _payments.updateOne(
+        where
+            .id(paymentObjectId)
+            .eq('paymentStatus', PaymentStatus.pending.value)
+            .eq('paymentProvider', 'bakong')
+            .eq('providerTransactionId', null),
+        modify
+            .set('paymentStatus', PaymentStatus.completed.value)
+            .set('providerTransactionId', providerTransactionId)
+            .set('paidAt', now)
+            .set('updatedAt', now),
+      );
+      if (paymentUpdate.nMatched > 0) return true;
+    } catch (error) {
+      await _rollbackOrderPaymentStatus(orderId, 'paid', 'pending', now);
+      if (_isDuplicateKeyError(error)) throw PaymentConflictException();
+      rethrow;
+    }
+
+    await _rollbackOrderPaymentStatus(orderId, 'paid', 'pending', now);
+    return false;
+  }
+
+  void _validatePayableOrder(Map<String, dynamic> order) {
+    if (!['pending', 'confirmed'].contains(order['orderStatus']) ||
+        order['paymentStatus'] != 'unpaid') {
+      throw PaymentConflictException();
+    }
+    final amount = _decimalAmount(order['totalAmount']);
+    final currency = order['currency'];
+    if (amount == null ||
+        amount < Decimal.zero ||
+        currency is! String ||
+        !['USD', 'KHR'].contains(currency)) {
+      throw InvalidPaymentOrderException();
+    }
+  }
+
+  bool _isDuplicateKeyError(Object error) {
+    return error.toString().contains('E11000') ||
+        error.toString().contains('11000');
   }
 
   Future<void> _rollbackOrderPaymentStatus(

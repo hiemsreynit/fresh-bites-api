@@ -33,7 +33,7 @@
     },
     {
       "name": "Payments",
-      "description": "Payment record management endpoints"
+      "description": "Authenticated payment creation and retrieval. Demo is the safe default; Bakong payment processing is not yet enabled."
     }
   ],
   "paths": {
@@ -1268,7 +1268,7 @@
       "put": {
         "tags": ["Orders"],
         "summary": "Update order status",
-        "description": "Admin only. Allowed transitions are pending to confirmed/cancelled, confirmed to preparing/cancelled, preparing to out_for_delivery, and out_for_delivery to delivered.",
+        "description": "Admin only. Allowed transitions are pending to confirmed/cancelled, confirmed to preparing/cancelled, preparing to out_for_delivery, and out_for_delivery to delivered. Orders with a pending or failed online payment cannot advance to preparing.",
         "security": [
           {
             "BearerAuth": []
@@ -1338,7 +1338,7 @@
       "put": {
         "tags": ["Orders"],
         "summary": "Cancel an order",
-        "description": "Customers may cancel only their own pending orders. Admins may cancel pending or confirmed orders.",
+        "description": "Customers may cancel only their own pending orders. Admins may cancel pending or confirmed orders. Cancellation is blocked while payment is pending or already paid.",
         "security": [
           {
             "BearerAuth": []
@@ -1425,7 +1425,7 @@
       "post": {
         "tags": ["Payments"],
         "summary": "Create a payment record",
-        "description": "Creates one pending payment record for an owned order. Amount comes from the order total and currency is server-set to USD. Cash on delivery remains pending/unpaid. Card and digital-wallet payments are recorded as pending only; no external payment provider is integrated.",
+        "description": "Creates one pending payment for the authenticated customer's eligible order. Amount and currency come from MongoDB; client totals are not accepted. The default demo provider returns a unique reference, no QR data, and an explicit simulation label. Demo payments never complete or mark an order paid. Bakong mode is unavailable until an approved server-side KHQR SDK and official SIT setup are installed.",
         "security": [
           {
             "BearerAuth": []
@@ -1451,7 +1451,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Payment"
+                  "$ref": "#/components/schemas/PaymentCheckout"
                 }
               }
             }
@@ -1477,6 +1477,9 @@
           },
           "409": {
             "$ref": "#/components/responses/PaymentConflict"
+          },
+          "503": {
+            "$ref": "#/components/responses/PaymentServiceUnavailable"
           },
           "500": {
             "$ref": "#/components/responses/InternalServerError"
@@ -1554,7 +1557,7 @@
       "put": {
         "tags": ["Payments"],
         "summary": "Update payment status",
-        "description": "Admin only. Allowed transitions are pending to completed/failed and completed to refunded. An administrator must use this endpoint only after trusted payment confirmation; card and digital-wallet payments are not processed by this API. The corresponding order paymentStatus is updated as well.",
+        "description": "Admin only. Allowed transitions are pending to failed and completed to refunded. This endpoint cannot mark a payment completed; completion is reserved for trusted provider verification. The corresponding order paymentStatus is updated as well.",
         "security": [
           {
             "BearerAuth": []
@@ -1568,7 +1571,7 @@
                 "$ref": "#/components/schemas/UpdatePaymentStatusRequest"
               },
               "example": {
-                "paymentStatus": "completed"
+                "paymentStatus": "failed"
               }
             }
           }
@@ -1624,7 +1627,12 @@
           "amount",
           "currency",
           "paymentMethod",
+          "paymentProvider",
+          "provider",
+          "isDemo",
           "transactionReference",
+          "providerTransactionId",
+          "qrData",
           "paymentStatus",
           "paidAt",
           "createdAt",
@@ -1649,16 +1657,38 @@
           },
           "currency": {
             "type": "string",
-            "enum": ["USD"],
-            "description": "Server-controlled currency; not accepted from clients."
+            "enum": ["USD", "KHR"],
+            "description": "Copied from the persisted order; not accepted from clients."
           },
           "paymentMethod": {
             "type": "string",
             "enum": ["cash_on_delivery", "card", "digital_wallet"]
           },
+          "paymentProvider": {
+            "type": "string",
+            "enum": ["demo", "bakong", "cash_on_delivery", "legacy"]
+          },
+          "provider": {
+            "type": "string",
+            "description": "Provider label, or cash_on_delivery for COD payments."
+          },
+          "isDemo": {
+            "type": "boolean",
+            "description": "True only for a local simulation; demo mode does not process payments."
+          },
           "transactionReference": {
             "type": "string",
             "nullable": true
+          },
+          "providerTransactionId": {
+            "type": "string",
+            "nullable": true,
+            "description": "Trusted provider transaction identity; unique across payments."
+          },
+          "qrData": {
+            "type": "string",
+            "nullable": true,
+            "description": "Generated by an approved provider SDK. Null in demo mode."
           },
           "paymentStatus": {
             "type": "string",
@@ -1678,6 +1708,22 @@
             "format": "date-time"
           }
         }
+      },
+      "PaymentCheckout": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Payment"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "message": {
+                "type": "string",
+                "description": "Demo-mode notice when the payment is simulated."
+              }
+            }
+          }
+        ]
       },
       "CreatePaymentRequest": {
         "type": "object",
@@ -1701,7 +1747,7 @@
         "properties": {
           "paymentStatus": {
             "type": "string",
-            "enum": ["completed", "failed", "refunded"]
+            "enum": ["failed", "refunded"]
           }
         }
       },
@@ -1808,6 +1854,7 @@
           "subtotal",
           "deliveryFee",
           "totalAmount",
+          "currency",
           "orderStatus",
           "paymentStatus",
           "createdAt",
@@ -1847,6 +1894,11 @@
           "totalAmount": {
             "type": "number",
             "minimum": 0
+          },
+          "currency": {
+            "type": "string",
+            "enum": ["USD", "KHR"],
+            "description": "Stored with the order and used as the payment currency."
           },
           "orderStatus": {
             "type": "string",
@@ -2441,6 +2493,19 @@
             },
             "example": {
               "error": "Payment is already created or status change is not allowed"
+            }
+          }
+        }
+      },
+      "PaymentServiceUnavailable": {
+        "description": "The selected payment provider is not configured or Bakong integration is blocked pending an approved KHQR SDK and SIT setup.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorResponse"
+            },
+            "example": {
+              "error": "Bakong payments are not enabled: an approved server-compatible KHQR SDK and verified SIT integration are required."
             }
           }
         }

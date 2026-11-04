@@ -96,6 +96,7 @@ class Order {
   final double subtotal;
   final double deliveryFee;
   final double totalAmount;
+  final String currency;
   final OrderStatus orderStatus;
   final String paymentStatus;
   final DateTime createdAt;
@@ -110,6 +111,7 @@ class Order {
     required this.subtotal,
     required this.deliveryFee,
     required this.totalAmount,
+    required this.currency,
     required this.orderStatus,
     required this.paymentStatus,
     required this.createdAt,
@@ -135,6 +137,7 @@ class Order {
       subtotal: _amountAsDouble(map['subtotal']),
       deliveryFee: _amountAsDouble(map['deliveryFee']),
       totalAmount: _amountAsDouble(map['totalAmount']),
+      currency: map['currency'] as String,
       orderStatus: status,
       paymentStatus: map['paymentStatus'] as String,
       createdAt: map['createdAt'] as DateTime,
@@ -151,6 +154,7 @@ class Order {
     'subtotal': subtotal,
     'deliveryFee': deliveryFee,
     'totalAmount': totalAmount,
+    'currency': currency,
     'orderStatus': orderStatus.value,
     'paymentStatus': paymentStatus,
     'createdAt': createdAt.toIso8601String(),
