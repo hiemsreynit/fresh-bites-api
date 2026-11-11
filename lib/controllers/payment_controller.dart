@@ -81,6 +81,38 @@ class PaymentController {
     }
   }
 
+    Future<Response> verify(RequestContext context, String id) async {
+    if (!_isValidId(id)) return _badRequest();
+    final user = context.read<User>();
+
+    try {
+      final payment = await _repository.getById(id);
+      if (payment == null || !_canAccess(user, payment)) return _notFound();
+
+      final verification = await _service.verifyPayment(id);
+      if (verification == null) return _notFound();
+
+      final updatedPayment = await _repository.getById(id);
+
+      return Response.json(
+        body: {
+          'status': verification.status.name,
+          'transactionId': verification.transactionId,
+          if (updatedPayment != null)
+            'payment': _service.paymentToJson(updatedPayment),
+        },
+      );
+    } on PaymentVerificationConflictException {
+      return _conflict();
+    } on PaymentProviderConfigurationException catch (error) {
+      stderr.writeln('Payment provider configuration error: ${error.message}');
+      return _serviceUnavailable(error.message);
+    } catch (error) {
+      stderr.writeln('Payment verification failed (${error.runtimeType}).');
+      return _internalServerError();
+    }
+  }
+
   Future<Response> updateStatus(
     RequestContext context,
     String id,

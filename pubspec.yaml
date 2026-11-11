@@ -15,6 +15,8 @@ dependencies:
   dotenv: ^4.2.0
   mailer: 6.5.0
   mongo_dart: ^0.10.10
+  http: ^1.2.0
+  khqr_generator: ^0.0.8
 
 dev_dependencies:
   dart_frog_lint: ^0.1.0
