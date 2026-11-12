@@ -2,6 +2,7 @@ import 'package:dart_frog/dart_frog.dart';
 
 import 'package:fresh_bites_api/controllers/auth_controller.dart';
 
+
 final _controller = AuthController();
 
 Future<Response> onRequest(RequestContext context) async {
