@@ -59,33 +59,26 @@ void main() {
     });
   });
 
-  test(
-    'Bakong integration refuses to generate or verify without its SDK',
-    () async {
-      final settings = PaymentProviderSettings.fromValues(
-        provider: 'bakong',
-        bakongEnvironment: 'sit',
-        bakongApiToken: 'sit-token',
-        bakongMerchantAccountId: 'merchant@bank',
-        bakongMerchantName: 'Fresh Bites',
-      );
-      final service = BakongService(settings);
+  test('Bakong service generates a valid KHQR payment request', () async {
+    final settings = PaymentProviderSettings.fromValues(
+      provider: 'bakong',
+      bakongEnvironment: 'sit',
+      bakongApiToken: 'sit-token',
+      bakongMerchantAccountId: 'merchant@bank',
+      bakongMerchantName: 'Fresh Bites',
+    );
+    final service = BakongService(settings);
 
-      await expectLater(
-        service.createPaymentRequest(
-          PaymentRequestInput(
-            order: _order(),
-            paymentMethod: PaymentMethod.digitalWallet,
-          ),
-        ),
-        throwsA(isA<BakongIntegrationUnavailableException>()),
-      );
-      await expectLater(
-        service.verifyTransaction(_payment()),
-        throwsA(isA<BakongIntegrationUnavailableException>()),
-      );
-    },
-  );
+    final request = await service.createPaymentRequest(
+      PaymentRequestInput(
+        order: _order(),
+        paymentMethod: PaymentMethod.digitalWallet,
+      ),
+    );
+
+    expect(request.paymentReference, isNotEmpty);
+    expect(request.qrData, isNotNull);
+  });
 }
 
 Order _order() {

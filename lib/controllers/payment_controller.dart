@@ -38,7 +38,7 @@ class PaymentController {
     } on PaymentProviderConfigurationException catch (error) {
       stderr.writeln('Payment provider configuration error: ${error.message}');
       return _serviceUnavailable(error.message);
-    } on BakongIntegrationUnavailableException catch (error) {
+    } on BakongService catch (error) {
       stderr.writeln('Bakong integration unavailable.');
       return _serviceUnavailable(error.toString());
     } on InvalidPaymentOrderException {
@@ -81,7 +81,7 @@ class PaymentController {
     }
   }
 
-    Future<Response> verify(RequestContext context, String id) async {
+  Future<Response> verify(RequestContext context, String id) async {
     if (!_isValidId(id)) return _badRequest();
     final user = context.read<User>();
 

@@ -117,8 +117,8 @@ class BakongService implements PaymentProvider {
     }
 
     final currency = order.currency.toUpperCase() == 'KHR'
-        ? KHQRCurrency.KHR
-        : KHQRCurrency.USD;
+        ? KHQRCurrency.khr.code
+        : KHQRCurrency.usd.code;
 
     // 1. Generate dynamic KHQR using Bakong parameters
     final individualInfo = IndividualInfo(
@@ -130,7 +130,7 @@ class BakongService implements PaymentProvider {
       storeLabel: merchantName,
       terminalLabel: order.id,
       billNumber: order.id,
-      purpose: 'Order #${order.id}',
+      purposeOfTransaction: 'Order #${order.id}',
     );
 
     final response = KHQRGenerator.generateIndividual(individualInfo);
@@ -142,8 +142,8 @@ class BakongService implements PaymentProvider {
 
     final qrString = response.data!.qr;
     // 2. MD5 of raw QR is used by Bakong to track dynamic transactions
-    final md5Hash = (response.data!.md5?.isNotEmpty ?? false)
-        ? response.data!.md5!.toLowerCase()
+    final md5Hash = response.data!.md5.isNotEmpty
+        ? response.data!.md5.toLowerCase()
         : md5.convert(utf8.encode(qrString)).toString().toLowerCase();
 
     return PaymentRequest(
