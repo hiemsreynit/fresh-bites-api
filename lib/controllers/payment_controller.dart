@@ -45,7 +45,7 @@ class PaymentController {
       stderr.writeln('Payment order data is invalid.');
       return _internalServerError();
     } catch (error) {
-      stderr.writeln('Payment creation failed (${error.runtimeType}).');
+      stderr.writeln('Payment creation failed (${error.runtimeType}): $error');
       return _internalServerError();
     }
   }

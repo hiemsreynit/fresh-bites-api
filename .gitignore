@@ -15,6 +15,6 @@ build/
 # Test related files
 coverage/
 
-.env
-.env.*
 !.env.example
+config.bat
+node_modules

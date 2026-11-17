@@ -120,6 +120,8 @@ class BakongService implements PaymentProvider {
         ? KHQRCurrency.khr.code
         : KHQRCurrency.usd.code;
 
+    final expiration = DateTime.now().toUtc().add(const Duration(minutes: 15));
+
     // 1. Generate dynamic KHQR using Bakong parameters
     final individualInfo = IndividualInfo(
       bakongAccountID: merchantAccountId,
@@ -130,7 +132,8 @@ class BakongService implements PaymentProvider {
       storeLabel: merchantName,
       terminalLabel: order.id,
       billNumber: order.id,
-      purposeOfTransaction: 'Order #${order.id}',
+      purposeOfTransaction: 'Payment',
+      expirationTimestamp: expiration.millisecondsSinceEpoch,
     );
 
     final response = KHQRGenerator.generateIndividual(individualInfo);
